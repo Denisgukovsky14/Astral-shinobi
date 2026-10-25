@@ -19,12 +19,15 @@ public class ArcherFighter : MonoBehaviour
     public float baseStandRadius = 4.5f;
 
     [Tooltip("How much farther than baseStandRadius this archer holds itself from the player, on top of it always sniping from standRadius away in the first place - it stays safely behind closer-range units rather than sharing their exact ring.")]
-    public float standRadiusMultiplier = 2.6f;
+    public float standRadiusMultiplier = 1.3f;
 
     float standRadius => baseStandRadius * standRadiusMultiplier;
 
     [Tooltip("Hard floor on how close this ranged unit may ever end up to the player, regardless of which movement branch is driving it - normal ring-holding already keeps it at standRadius, but approachingPlayer (see UpdateMovement) aims straight at the player's live position while no shot exists anywhere, and that alone must never be allowed to walk it into melee contact.")]
     public float minPlayerDistance = 1f;
+
+    [Tooltip("Точки на кольце, путь к которым проходит ближе этого расстояния от игрока, выбираются в последнюю очередь (иначе боец бежит прямо на игрока, обходя его с другой стороны).")]
+    public float pathPlayerClearance = 2f;
 
     [Tooltip("Standing points are (re)searched at most this often, and immediately if the current one stops working.")]
     public float positionSearchInterval = 1f;
@@ -68,6 +71,7 @@ public class ArcherFighter : MonoBehaviour
     private AIPath ai;
     private CapsuleCollider2D bodyCollider;
     private float cooldownTimer;
+    private CombatAgent agent;
     private float repathTimer;
     private float samplePhase;
     private Vector2? committedDestination;
@@ -86,6 +90,7 @@ public class ArcherFighter : MonoBehaviour
     void Awake()
     {
         ai = GetComponent<AIPath>();
+        agent = GetComponent<CombatAgent>();
         bodyCollider = GetComponent<CapsuleCollider2D>();
         antiTricker = GetComponent<AntiTricker>();
         // Дальнобойный юнит целится в цель, а не по направлению собственного движения - стандартный
@@ -150,6 +155,17 @@ public class ArcherFighter : MonoBehaviour
             return;
         }
         lastThrowCheckFailed = false;
+
+        // Координация: стрелять можно только с разрешения директора (токен кольца). Отказ лишь
+        // откладывает выстрел - кулдаун и движение не трогаются, повтор через RetryDelay.
+        if (agent != null && !agent.TryStartAttack())
+        {
+            cooldownTimer = CombatAgent.RetryDelay;
+            // Выстрел есть, просто ждём разрешения - это не «давно не стрелял из-за плохой позиции»,
+            // поэтому сторож maxTimeWithoutThrow (перестановка в поисках выстрела) не должен сработать.
+            timeSinceLastThrow = 0f;
+            return;
+        }
 
         Debug.Log($"[ArcherFighter] Shot from {selfPos} direction {direction}");
 
@@ -240,8 +256,18 @@ public class ArcherFighter : MonoBehaviour
                 bool stale = committedDestination.HasValue && Vector2.Distance(playerPos, committedDestination.Value) > standRadius * 1.5f;
                 if (committedDestination == null || repathTimer <= 0f || stale)
                 {
-                    committedDestination = FindStandingPoint(selfPos, playerPos);
-                    repathTimer = positionSearchInterval;
+                    // Точка всё ещё хорошая (проходима, из неё есть выстрел, дистанция до игрока в норме) - держим её,
+                    // а не перескакиваем каждую секунду на ближайшую из новых случайных: в тесном уровне с колоннами
+                    // такие перескоки гоняли бойца через всю комнату, в том числе вплотную к игроку.
+                    if (!stale && committedDestination.HasValue && StillGoodStandingPoint(committedDestination.Value, playerPos))
+                    {
+                        repathTimer = positionSearchInterval;
+                    }
+                    else
+                    {
+                        committedDestination = FindStandingPoint(selfPos, playerPos);
+                        repathTimer = positionSearchInterval;
+                    }
                 }
             }
 
@@ -265,7 +291,11 @@ public class ArcherFighter : MonoBehaviour
 
         // Безусловный пол, проверяется последним независимо от того, какая ветка выше выбрала
         // точку назначения: дальнобойному юниту врезаться вплотную к игроку никогда недопустимо.
-        if (Vector2.Distance(selfPos, playerPos) < minPlayerDistance) ai.canMove = false;
+        // Пол действует только пока боец идёт К игроку: если точка назначения дальше от игрока, чем он сам
+        // сейчас, он уходит - и останавливать его нельзя, иначе, оказавшись впритык, он застрял бы навсегда.
+        if (Vector2.Distance(selfPos, playerPos) < minPlayerDistance &&
+            (!committedDestination.HasValue || Vector2.Distance(committedDestination.Value, playerPos) < Vector2.Distance(selfPos, playerPos)))
+            ai.canMove = false;
     }
 
     bool UpdatePositionProgressWatchdog()
@@ -295,6 +325,23 @@ public class ArcherFighter : MonoBehaviour
 
         positionStuckTimer = 0f;
         return true;
+    }
+
+    // Путь прямо к точке на кольце часто идёт через игрока (точка на противоположной стороне от
+    // него), и боец сам упирается в игрока вплотную. Такие точки отбрасываются в последнюю очередь:
+    // штраф к расстоянию, так что они выбираются, только если ничего другого нет.
+    float PathPenalty(Vector2 from, Vector2 to, Vector2 playerPos)
+    {
+        Vector2 seg = to - from;
+        float len2 = seg.sqrMagnitude;
+        float t = len2 > 0.0001f ? Mathf.Clamp01(Vector2.Dot(playerPos - from, seg) / len2) : 0f;
+        return Vector2.Distance(playerPos, from + seg * t) < pathPlayerClearance ? 100f : 0f;
+    }
+
+    bool StillGoodStandingPoint(Vector2 point, Vector2 playerPos)
+    {
+        if (Mathf.Abs(Vector2.Distance(point, playerPos) - standRadius) > standRadius * 0.35f) return false;
+        return IsWalkable(point) && TryFindShot(point, out _);
     }
 
     bool IsWalkable(Vector2 point)
@@ -330,7 +377,7 @@ public class ArcherFighter : MonoBehaviour
                 if (!IsWalkable(candidate)) continue;
                 if (!TryFindShot(candidate, out _)) continue;
 
-                float d = Vector2.Distance(selfPos, candidate);
+                float d = Vector2.Distance(selfPos, candidate) + PathPenalty(selfPos, candidate, playerPos);
                 if (d < bestDenseDist) { bestDenseDist = d; bestDense = candidate; }
             }
             return bestDense;
@@ -348,7 +395,7 @@ public class ArcherFighter : MonoBehaviour
             if (!IsWalkable(candidate)) continue;
             if (!TryFindShot(candidate, out _)) continue;
 
-            float d = Vector2.Distance(selfPos, candidate);
+            float d = Vector2.Distance(selfPos, candidate) + PathPenalty(selfPos, candidate, playerPos);
             if (d < bestDist) { bestDist = d; best = candidate; }
         }
 

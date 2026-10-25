@@ -1,9 +1,10 @@
 using UnityEngine;
 
 // Снаряд лучника - та же идея реального физического попадания, что и в Kunai.cs, но проще:
-// лучник никогда не целится рикошетом (в ArcherFighter вообще нет кода рикошетов), так что
-// и здесь нет ничего, что оправдывало бы отскок. Промах просто летит прямо, пока не ударится
-// о стену или не истечёт время жизни, вместо поведения Kunai с отражением от стен.
+// лучник целится только по прямой (в ArcherFighter нет расчёта рикошетов), а сам рикошет у стрелы
+// «обычный», физический: ударившись о препятствие под достаточно косым углом, стрела один раз
+// отскакивает (отражается), а при более прямом попадании просто исчезает. Угол считается между
+// направлением полёта и нормалью поверхности (0° - прямо в лоб, 90° - скользит вдоль стены).
 [RequireComponent(typeof(Rigidbody2D))]
 public class Arrow : MonoBehaviour
 {
@@ -15,15 +16,26 @@ public class Arrow : MonoBehaviour
     [Tooltip("How long this arrow may continuously overlap an obstacle before it's treated as genuinely stuck and destroyed outright - same reasoning as Kunai.maxContinuousObstacleOverlap (this level's thin walls make a fixed penetration-depth threshold unreliable; duration isn't fooled by wall thickness).")]
     public float maxContinuousObstacleOverlap = 0.1f;
 
+    [Tooltip("Сколько раз стрела может отскочить от препятствия.")]
+    public int maxRicochets = 1;
+
+    [Tooltip("Минимальный угол попадания, при котором стрела отскакивает, в градусах. Угол между направлением полёта и нормалью поверхности: 0 - прямо в лоб, 90 - скользящий удар. Косее этого угла - рикошет, прямее - стрела просто исчезает.")]
+    public float ricochetMinAngle = 45f;
+
     // Счётчик реальных попаданий снаряда, та же конвенция, что и Kunai.TotalHits - сделан
     // отдельным, а не общим, так как это действительно другой тип снаряда.
     public static int TotalHits;
+
+    [Tooltip("Урон по игроку в долях от полного хп (1 = всё хп).")]
+    public float damage = 0.6f;
 
     private Rigidbody2D rb;
     private Collider2D col;
     private ContactFilter2D obstacleFilter;
     private readonly Collider2D[] overlapBuffer = new Collider2D[4];
     private float continuousObstacleOverlapTime;
+    private Vector2 preCollisionVelocity;
+    private int ricochetCount;
 
     void Awake()
     {
@@ -39,6 +51,7 @@ public class Arrow : MonoBehaviour
         if (direction.sqrMagnitude < 0.0001f) direction = Vector2.up;
         FaceDirection(direction);
         rb.linearVelocity = direction.normalized * speed;
+        preCollisionVelocity = rb.linearVelocity;
         Destroy(gameObject, maxLifetime);
     }
 
@@ -49,7 +62,11 @@ public class Arrow : MonoBehaviour
         if (continuousObstacleOverlapTime > maxContinuousObstacleOverlap)
         {
             Destroy(gameObject);
+            return;
         }
+
+        // Скорость до физического шага: к моменту OnCollisionEnter2D решатель уже мог её изменить (как в Kunai.cs).
+        preCollisionVelocity = rb.linearVelocity;
     }
 
     void FaceDirection(Vector2 direction)
@@ -65,9 +82,34 @@ public class Arrow : MonoBehaviour
         if (collision.collider.gameObject.layer == LayerMask.NameToLayer("Player"))
         {
             TotalHits++;
+            var health = collision.collider.GetComponentInParent<PlayerHealth>();
+            if (health != null) health.TakeDamage(damage);
         }
-        // Любое другое попадание (стена или что угодно) тоже просто завершает выстрел - без
-        // отскока и рикошета, в соответствии с прицеливанием ArcherFighter только по прямой.
+        // Рикошет только от препятствий и только пока есть отскоки: достаточно косое попадание отражает
+        // стрелу, прямое - просто завершает выстрел.
+        bool isObstacle = ((1 << collision.collider.gameObject.layer) & obstacleMask.value) != 0;
+        if (isObstacle && ricochetCount < maxRicochets && TryRicochet(collision)) return;
+
         Destroy(gameObject);
+    }
+
+    bool TryRicochet(Collision2D collision)
+    {
+        Vector2 incoming = preCollisionVelocity;
+        if (incoming.sqrMagnitude < 0.01f) return false;
+
+        Vector2 normal = collision.GetContact(0).normal;
+        float angle = Vector2.Angle(-incoming, normal);
+        if (angle <= ricochetMinAngle) return false;
+
+        Vector2 reflected = Vector2.Reflect(incoming, normal);
+        reflected = reflected.sqrMagnitude < 0.01f ? normal * speed : reflected.normalized * speed;
+
+        rb.linearVelocity = reflected;
+        preCollisionVelocity = reflected;
+        FaceDirection(reflected);
+        transform.position += (Vector3)(normal * 0.05f);
+        ricochetCount++;
+        return true;
     }
 }

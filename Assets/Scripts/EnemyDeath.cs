@@ -16,8 +16,11 @@ public class EnemyDeath : MonoBehaviour
         isDead = true;
 
         GetComponent<AIPath>().canMove = false;
-        var chaseStop = GetComponent<EnemyChaseStop>();
-        if (chaseStop != null) chaseStop.enabled = false;
+        // Мёртвый враг ничего не делает: выключаем все остальные скрипты на нём (бой, бросок,
+        // погоню, AntiTricker и т.д.), чтобы он не бил, не стрелял и не двигался. Сам EnemyDeath
+        // остаётся, он ничего больше не делает после isDead.
+        foreach (var behaviour in GetComponents<MonoBehaviour>())
+            if (behaviour != this) behaviour.enabled = false;
         GetComponent<Collider2D>().enabled = false;
         GetComponent<Rigidbody2D>().simulated = false;
 

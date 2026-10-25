@@ -25,6 +25,9 @@ public class TestScript : MonoBehaviour
     public Button catchButton;
     public float catchRadius = 1f;
 
+    // Игрок сейчас целится и держит клинок - в это время парирование недоступно.
+    public bool IsAiming => heldKnife != null;
+
     private const float NormalFixedDeltaTime = 0.02f;
 
     private Rigidbody2D rb;
@@ -49,6 +52,9 @@ public class TestScript : MonoBehaviour
 
     void Update()
     {
+        // Пока идёт мини-игра парирования, время стоит и игрок ничего не делает.
+        if (ParrySystem.Active || PlayerHealth.IsDead) return;
+
         UpdateKnifeCooldown();
         HandleAim();
         UpdateCatchButton();

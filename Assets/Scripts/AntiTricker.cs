@@ -70,6 +70,8 @@ public class AntiTricker : MonoBehaviour
     private AIPath ai;
     private Rigidbody2D rb;
     private EnemyChaseStop chaseStop;
+    private EnemyAttackZone attackZone;
+    private CombatAgent combatAgent;
     private float previousArcT;
     private Transform pivotObstacle;
     private float lastPlayerAngle;
@@ -97,6 +99,8 @@ public class AntiTricker : MonoBehaviour
         ai = GetComponent<AIPath>();
         rb = GetComponent<Rigidbody2D>();
         chaseStop = GetComponent<EnemyChaseStop>();
+        attackZone = GetComponent<EnemyAttackZone>();
+        combatAgent = GetComponent<CombatAgent>();
     }
 
     void Update()
@@ -121,7 +125,8 @@ public class AntiTricker : MonoBehaviour
         accumulatedAngle += delta;
         accumulatedAngle = Mathf.MoveTowards(accumulatedAngle, 0f, angleDecayPerSecond * Time.deltaTime);
 
-        if (Mathf.Abs(accumulatedAngle) >= GetThreshold()) StartDash();
+        // Координация: ближний боец без токена не имеет права на рывок (он ждёт на расстоянии).
+        if (Mathf.Abs(accumulatedAngle) >= GetThreshold() && (combatAgent == null || combatAgent.AllowsCounterDash)) StartDash();
     }
 
     float GetThreshold()
@@ -311,6 +316,10 @@ public class AntiTricker : MonoBehaviour
     {
         if (PlayerEscaped()) { EndDash(); return; }
 
+        // Игрок оказался в зоне удара посреди рывка (проскочил перед носом, пока враг летит к
+        // старой точке): рывок обрывается, враг возвращается к обычному поведению и просто бьёт.
+        if (attackZone != null && attackZone.PlayerWithinRange()) { EndDash(); return; }
+
         dashTimer += Time.deltaTime;
         UpdateMovement();
 
@@ -328,6 +337,7 @@ public class AntiTricker : MonoBehaviour
         onSecondLeg = false;
         ai.enableRotation = true;
         ai.canMove = true;
+        ai.isStopped = false; // остановка по касанию могла быть выставлена до рывка, а её сброс при выходе из зоны во время рывка пропущен
         ai.maxSpeed = capturedMaxSpeed;
         ai.maxAcceleration = capturedMaxAcceleration;
         ai.autoRepath = capturedAutoRepath;

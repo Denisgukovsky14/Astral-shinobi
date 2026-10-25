@@ -22,6 +22,9 @@ public class Kunai : MonoBehaviour
     // для HUD-индикации в левом верхнем углу (см. KunaiHitFeedbackUI).
     public static int TotalHits;
 
+    [Tooltip("Урон по игроку в долях от полного хп (1 = всё хп).")]
+    public float damage = 0.3f;
+
     private Rigidbody2D rb;
     private Collider2D col;
     private ContactFilter2D obstacleFilter;
@@ -102,6 +105,8 @@ public class Kunai : MonoBehaviour
             // EnemyAttackZone - просто счётчик попаданий, а не настоящий урон) - просто считаем
             // попадание и исчезаем, следуя той же конвенции, пока не появится настоящая система урона.
             TotalHits++;
+            var health = collision.collider.GetComponentInParent<PlayerHealth>();
+            if (health != null) health.TakeDamage(damage);
             Destroy(gameObject);
             return;
         }

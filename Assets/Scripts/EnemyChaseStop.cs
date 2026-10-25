@@ -23,6 +23,11 @@ public class EnemyChaseStop : MonoBehaviour
     private Collider2D col;
     private CapsuleCollider2D capsuleCol;
     private AntiTricker antiTricker;
+    private EnemyAttackZone attackZone;
+    // Дальнобойные юниты сами владеют ai.canMove (выставляют каждый кадр) - остановка по касанию для них не нужна
+    // и конфликтует: попав в зону касания игрока, лучник/кунайщик навсегда застревал с canMove=false.
+    private bool isRangedUnit;
+    private CombatAgent combatAgent;
     private Vector2 lastCheckedPosition;
     private float stuckTimer;
     private bool insideTouchZone;
@@ -87,6 +92,9 @@ public class EnemyChaseStop : MonoBehaviour
         col = GetComponent<Collider2D>();
         capsuleCol = col as CapsuleCollider2D;
         antiTricker = GetComponent<AntiTricker>();
+        attackZone = GetComponent<EnemyAttackZone>();
+        isRangedUnit = GetComponent<KunaiFighter>() != null || GetComponent<ArcherFighter>() != null;
+        combatAgent = GetComponent<CombatAgent>();
         lastCheckedPosition = transform.position;
         previousFramePosition = rb.position;
 
@@ -453,6 +461,19 @@ public class EnemyChaseStop : MonoBehaviour
 
     void UpdateTouchStop()
     {
+        if (isRangedUnit) return;
+
+        // Координация: ближний боец без токена отходит на дистанцию ожидания (его цель - точка ожидания,
+        // её выставляет CombatDirector). Остановка по касанию приморозила бы его вплотную к игроку, поэтому
+        // здесь она снимается; дойдя до точки, он разворачивается лицом к игроку.
+        if (combatAgent != null && combatAgent.IsWithdrawing)
+        {
+            if (insideTouchZone) { ai.isStopped = false; ai.canMove = true; }
+            if (!IsCountering() && playerTouchZone != null && ai.velocity.magnitude < 0.3f)
+                FaceTarget(playerTouchZone.transform.position);
+            return;
+        }
+
         if (!insideTouchZone) return;
 
         // AntiTricker фиксирует собственную цель и поворот на время рывка и имеет собственные проверки
@@ -465,7 +486,7 @@ public class EnemyChaseStop : MonoBehaviour
         // во время манёвра AntiTricker показало многокадровые заморозки, ровно совпадающие с окнами
         // «зона касания + линия видимости» посреди рывка, задолго до того, как собственная проверка
         // прибытия рывка закончила бы его.
-        if (IsCountering()) return;
+        if (IsCountering() || IsWindingUp()) return;
 
         // Геометрически находиться внутри триггера недостаточно - колонна между ними всё равно может
         // перекрывать его, и это заморозило бы врага вплотную к колонне вместо того, чтобы дать
@@ -488,6 +509,13 @@ public class EnemyChaseStop : MonoBehaviour
     bool IsCountering()
     {
         return antiTricker != null && antiTricker.IsCountering;
+    }
+
+    // На время замаха удара враг стоит на месте, и canMove принадлежит EnemyAttackZone (по его
+    // окончании он сам вернёт движение, а остановку по касанию этот компонент пересчитает заново).
+    bool IsWindingUp()
+    {
+        return attackZone != null && attackZone.IsWindingUp;
     }
 
     void FaceTarget(Vector2 target)
@@ -516,7 +544,7 @@ public class EnemyChaseStop : MonoBehaviour
             // Та же граница, что и везде в этом компоненте: пока AntiTricker противодействует, он
             // исключительно владеет canMove/isStopped - событие выхода из триггера посреди рывка (враг
             // проходит мимо игрока во время манёвра) не должно сбрасывать их у него из-под ног.
-            if (IsCountering()) return;
+            if (IsCountering() || IsWindingUp()) return;
             ai.isStopped = false;
             ai.canMove = true;
         }

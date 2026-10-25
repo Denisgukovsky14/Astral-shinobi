@@ -174,6 +174,8 @@ GameObject:
   - component: {fileID: 5233384017265862977}
   - component: {fileID: 6503256375308027005}
   - component: {fileID: 8670121133061818321}
+  - component: {fileID: 1277917863868952961}
+  - component: {fileID: 4836429920190610928}
   m_Layer: 11
   m_Name: Enemy_Kunai_Fighter
   m_TagString: Untagged
@@ -386,6 +388,7 @@ MonoBehaviour:
     m_Bits: 256
   standRadius: 4.5
   minPlayerDistance: 1
+  pathPlayerClearance: 2
   positionSearchInterval: 1
   stuckAtPointAbandonTime: 0.5
   maxTimeWithoutThrow: 2.5
@@ -396,6 +399,8 @@ MonoBehaviour:
   kunaiPrefab: {fileID: 8821118874478467385, guid: 68d5360de4f7029419006ec29f4f8415, type: 3}
   kunaiSpeed: 10
   kunaiRadius: 0.02
+  kunaiLength: 0.58
+  cornerLeniencyFraction: 0.6
   throwClearanceMargin: 0.05
   enableRicochets: 1
   faceRotationSpeed: 720
@@ -416,3 +421,31 @@ MonoBehaviour:
   bodySprite: {fileID: 497127938134538729}
   deadSprite: {fileID: 21300000, guid: 4c3de17d8d2eda94cabe917c8756433b, type: 3}
   sword: {fileID: 0}
+--- !u!114 &1277917863868952961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7128232986508268133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03a97590c4adc3e468d30bf621d68470, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatAgent
+  ring: 1
+--- !u!114 &4836429920190610928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7128232986508268133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 269dee79a69b0c74ba7df413855c48ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySeparation
+  radius: 0.45
+  maxPushSpeed: 4
+  slideBias: 0.9

@@ -72,6 +72,8 @@ GameObject:
   - component: {fileID: 2622573025197256544}
   - component: {fileID: 549306088775071032}
   - component: {fileID: 4074839407349717191}
+  - component: {fileID: 5161950661995110444}
+  - component: {fileID: 2785743985109548680}
   m_Layer: 11
   m_Name: Enemy_Sword_Fighter
   m_TagString: Untagged
@@ -87,7 +89,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 663363041387045694}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 1, w: -0.00000004371139}
+  m_LocalRotation: {x: 0, y: 0, z: -1, w: 0}
   m_LocalPosition: {x: 0.38, y: 8.42, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 0}
   m_ConstrainProportionsScale: 0
@@ -95,7 +97,7 @@ Transform:
   - {fileID: 4784121374798275680}
   - {fileID: 975187339514602471}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -180}
 --- !u!70 &351477369189156863
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -242,6 +244,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1505004f2baca5d4eba7eefbeb9d555f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyChaseStop
+  dashDistance: 2.5
+  dashCooldown: 0.8
   playerTouchZone: {fileID: 0}
   obstacleMask:
     serializedVersion: 2
@@ -337,10 +341,47 @@ MonoBehaviour:
   player: {fileID: 0}
   range: 1.5
   swingCooldown: 0.8
+  damage: 0.5
   obstacleMask:
     serializedVersion: 2
     m_Bits: 256
   maxPassableObstacleSize: 1.5
+  hitRangeBonus: 0.3
+  windupTime: 0.1
+  sword: {fileID: 0}
+  handleOffset: {x: 0, y: -0.55}
+  windupAngle: -45
+  strikeAngle: 75
+  strikeVisualTime: 0.06
+  returnVisualTime: 0.12
+--- !u!114 &5161950661995110444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663363041387045694}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03a97590c4adc3e468d30bf621d68470, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatAgent
+  ring: 0
+--- !u!114 &2785743985109548680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663363041387045694}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 269dee79a69b0c74ba7df413855c48ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySeparation
+  radius: 0.45
+  maxPushSpeed: 4
+  slideBias: 0.9
 --- !u!1 &4891320062152416982
 GameObject:
   m_ObjectHideFlags: 0
