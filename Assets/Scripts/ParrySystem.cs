@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -14,6 +15,10 @@ using UnityEngine.UI;
 // сразу. Значок скрещённых мечей в углу экрана показывает готовность: во время кулдауна он
 // медленно проявляется жёлтым, а когда парирование снова доступно - сразу становится зелёным.
 // Пока игрок целится и держит клинок, парировать нельзя: значок светится синим.
+// Несколько мечников, ударивших одновременно (в одну итерацию), делят одну мини-игру: удачное
+// парирование отбивает ВСЕ их удары сразу, но с каждым дополнительным мечником шарик бежит в
+// speedPerExtraAttacker раз быстрее (скорость умножается: 2 мечника - x1.5, 3 - x2.25). Зелёный
+// квадратик каждый раз встаёт в случайное место дуги, чтобы его положение нельзя было запомнить.
 // Интерфейс строится в коде под Canvas (всё без raycast, чтобы не мешать джойстикам).
 public class ParrySystem : MonoBehaviour
 {
@@ -29,9 +34,12 @@ public class ParrySystem : MonoBehaviour
     public float passDuration = 0.5f;
     [Tooltip("Сколько проходов делает шарик (туда, обратно, опять туда = 3).")]
     public int passes = 3;
-    [Tooltip("Где на дуге (0 = левый конец, 1 = правый) стоит зелёный квадратик.")]
-    [Range(0f, 1f)] public float targetT = 0.75f;
-    [Tooltip("Половина ширины окна парирования в долях дуги: шарик в пределах targetT ± это значение - успех. Размер квадратика подгоняется под него.")]
+    [Tooltip("Зелёный квадратик каждый раз встаёт в случайное место дуги в этих пределах (0 = левый конец, 1 = правый).")]
+    [Range(0f, 1f)] public float targetMin = 0.2f;
+    [Range(0f, 1f)] public float targetMax = 0.85f;
+    [Tooltip("Во сколько раз быстрее бежит шарик за КАЖДОГО дополнительного мечника, ударившего в ту же итерацию (множится: 2 мечника x1.5, 3 мечника x2.25).")]
+    public float speedPerExtraAttacker = 1.5f;
+    [Tooltip("Половина ширины окна парирования в долях дуги: шарик в пределах положения квадратика ± это значение - успех. Размер квадратика подгоняется под него.")]
     public float targetHalfWidth = 0.06f;
     [Tooltip("Кулдаун парирования после мини-игры, в секундах (реального времени).")]
     public float cooldown = 5f;
@@ -54,7 +62,11 @@ public class ParrySystem : MonoBehaviour
     public Color greenColor = new Color(0.3f, 1f, 0f, 1f);
 
     private bool active;
-    private float elapsed;
+    private float elapsed; // «время шарика»: растёт быстрее реального, если бьют несколько мечников
+    private float currentTargetT = 0.75f;
+    private float arcLength;
+    private float speedMultiplier = 1f;
+    private readonly List<Action<bool>> callbacks = new List<Action<bool>>();
     private bool resolved;
     private bool tapQueued;
     private float cooldownRemaining;
@@ -64,7 +76,7 @@ public class ParrySystem : MonoBehaviour
     private float resultTimer;
     private int beginFrame;
     private float savedTimeScale;
-    private Action<bool> onResolved;
+    private float savedMultiplier = 1f;
 
     private RectTransform panel;
     private UnityEngine.UI.Image vignette;
@@ -91,20 +103,41 @@ public class ParrySystem : MonoBehaviour
     {
         if (active || player == null || cooldownRemaining > 0f || IsPlayerAiming() || PlayerHealth.IsDead) return false;
 
-        Vector2 to = enemyPoint - (Vector2)player.position;
-        if (to.sqrMagnitude > 0.0001f && Vector2.Angle(player.up, to) > coneAngle * 0.5f) return false;
+        if (!InCone(enemyPoint)) return false;
 
         active = true;
         resolved = false;
         elapsed = 0f;
+        speedMultiplier = 1f;
         beginFrame = Time.frameCount;
-        onResolved = resolvedCallback;
+        callbacks.Clear();
+        callbacks.Add(resolvedCallback);
+        PlaceTarget(UnityEngine.Random.Range(Mathf.Min(targetMin, targetMax), Mathf.Max(targetMin, targetMax)));
         savedTimeScale = Time.timeScale;
+        savedMultiplier = GameSpeed.Multiplier;
         Time.timeScale = 0f;
 
         squareFill.color = new Color(greenColor.r, greenColor.g, greenColor.b, 0f);
         panel.gameObject.SetActive(true);
         UpdateBall(0f);
+        return true;
+    }
+
+    bool InCone(Vector2 enemyPoint)
+    {
+        Vector2 to = enemyPoint - (Vector2)player.position;
+        return !(to.sqrMagnitude > 0.0001f && Vector2.Angle(player.up, to) > coneAngle * 0.5f);
+    }
+
+    // Ещё один мечник ударил в ту же итерацию, пока мини-игра идёт: его удар отбивается тем же
+    // парированием (если он в конусе перед игроком), а шарик ускоряется в speedPerExtraAttacker раз.
+    // false - присоединиться нельзя (мини-игры нет, уже решена или удар сзади): удар засчитывается сразу.
+    public bool TryJoin(Vector2 enemyPoint, Action<bool> resolvedCallback)
+    {
+        if (!active || resolved || player == null || !InCone(enemyPoint)) return false;
+
+        callbacks.Add(resolvedCallback);
+        speedMultiplier *= speedPerExtraAttacker;
         return true;
     }
 
@@ -129,7 +162,7 @@ public class ParrySystem : MonoBehaviour
             return;
         }
 
-        elapsed += Time.unscaledDeltaTime;
+        elapsed += Time.unscaledDeltaTime * speedMultiplier;
         float total = passDuration * passes;
         float t = BallT(Mathf.Min(elapsed, total));
         UpdateBall(t);
@@ -137,7 +170,7 @@ public class ParrySystem : MonoBehaviour
         // Тап в том же кадре, где началась мини-игра, не считается - это не реакция игрока.
         bool tapped = Time.frameCount != beginFrame && (tapQueued || (Pointer.current != null && Pointer.current.press.wasPressedThisFrame));
         tapQueued = false;
-        if (tapped) Resolve(Mathf.Abs(t - targetT) <= targetHalfWidth);
+        if (tapped) Resolve(Mathf.Abs(t - currentTargetT) <= targetHalfWidth);
         else if (elapsed >= total) Resolve(false);
     }
 
@@ -185,11 +218,13 @@ public class ParrySystem : MonoBehaviour
     {
         active = false;
         panel.gameObject.SetActive(false);
-        Time.timeScale = savedTimeScale;
+        // Возвращаем то же замедление, что было, но с учётом множителя скорости, если его сменили во время мини-игры.
+        Time.timeScale = savedMultiplier > 0.0001f ? savedTimeScale / savedMultiplier * GameSpeed.Multiplier : savedTimeScale;
         cooldownRemaining = cooldown;
-        var cb = onResolved;
-        onResolved = null;
-        cb?.Invoke(success);
+        // Результат получают все ударившие: удачное парирование отбивает все удары разом.
+        var list = new List<Action<bool>>(callbacks);
+        callbacks.Clear();
+        foreach (var cb in list) cb?.Invoke(success);
     }
 
     // --- Построение интерфейса ---
@@ -198,6 +233,15 @@ public class ParrySystem : MonoBehaviour
     {
         float u = 1f - t;
         return u * u * p0 + 2f * u * t * p1 + t * t * p2;
+    }
+
+    // Ставит зелёный квадратик на дугу в положение t, повёрнутым вдоль касательной.
+    void PlaceTarget(float t)
+    {
+        currentTargetT = t;
+        Vector2 tangent = (Bezier(Mathf.Min(1f, t + 0.01f)) - Bezier(Mathf.Max(0f, t - 0.01f))).normalized;
+        square.anchoredPosition = Bezier(t);
+        square.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(tangent.y, tangent.x) * Mathf.Rad2Deg);
     }
 
     void UpdateBall(float t)
@@ -244,7 +288,7 @@ public class ParrySystem : MonoBehaviour
         p1 = new Vector2(0f, arcSize.y * 2f);
 
         const int segments = 40;
-        float arcLength = 0f;
+        arcLength = 0f;
         Vector2 prev = Bezier(0f);
         for (int i = 1; i <= segments; i++)
         {
@@ -260,14 +304,11 @@ public class ParrySystem : MonoBehaviour
 
         // Зелёный квадратик (контур + заливка), повёрнутый вдоль касательной дуги.
         float side = Mathf.Max(8f, 2f * targetHalfWidth * arcLength);
-        Vector2 tangent = (Bezier(Mathf.Min(1f, targetT + 0.01f)) - Bezier(Mathf.Max(0f, targetT - 0.01f))).normalized;
-        float angle = Mathf.Atan2(tangent.y, tangent.x) * Mathf.Rad2Deg;
 
         square = new GameObject("ParryTarget", typeof(RectTransform)).GetComponent<RectTransform>();
         square.SetParent(panel, false);
         square.sizeDelta = new Vector2(side, side);
-        square.anchoredPosition = Bezier(targetT);
-        square.localRotation = Quaternion.Euler(0f, 0f, angle);
+        PlaceTarget(currentTargetT);
 
         squareFill = NewImage("Fill", square, MakeRoundedSprite(64, 12, 0));
         Stretch(squareFill.rectTransform);

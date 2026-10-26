@@ -166,6 +166,20 @@ public class KunaiFighter : MonoBehaviour
 
     void Update()
     {
+        // Резерв отделения: ждёт на месте, пока в группе нет свободного места (CombatDirector).
+        if (agent != null && agent.IsReserve)
+        {
+            ai.canMove = false;
+            return;
+        }
+
+        // Гонец: бежит будить дремлющего (CombatDirector), обычная логика позиции и броска на это время выключена.
+        if (agent != null && agent.IsCalling)
+        {
+            agent.DriveCall();
+            return;
+        }
+
         Vector2 selfPos = transform.position;
         Vector2 playerPos = player.position;
 
@@ -471,12 +485,16 @@ public class KunaiFighter : MonoBehaviour
         Vector2 seg = to - from;
         float len2 = seg.sqrMagnitude;
         float t = len2 > 0.0001f ? Mathf.Clamp01(Vector2.Dot(playerPos - from, seg) / len2) : 0f;
-        return Vector2.Distance(playerPos, from + seg * t) < pathPlayerClearance ? 100f : 0f;
+        float penalty = Vector2.Distance(playerPos, from + seg * t) < pathPlayerClearance ? 100f : 0f;
+        // Фланги: точка с той же стороны от игрока, что и другой боец группы, - в последнюю очередь.
+        if (agent != null) penalty += agent.SpreadPenalty(to);
+        return penalty;
     }
 
     bool StillGoodStandingPoint(Vector2 point, Vector2 playerPos)
     {
         if (Mathf.Abs(Vector2.Distance(point, playerPos) - standRadius) > standRadius * 0.35f) return false;
+        if (agent != null && agent.IsCrowded(point)) return false;
         return IsWalkable(point) && TryFindBestShot(point, out _);
     }
 

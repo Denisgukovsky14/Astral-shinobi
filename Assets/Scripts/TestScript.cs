@@ -42,10 +42,17 @@ public class TestScript : MonoBehaviour
     private float cooldownRemaining;
     private float aimSlowTimer;
     private bool vignetteFadeOutStarted;
+    private bool aimFacingActive;
+    private float aimFacingAngle;
+    private bool wasAimFacing;
+    // Куда игрок смотрел по ходу движения в последний раз: после броска он разворачивается обратно туда
+    // (на телефоне взгляд всегда совпадает с направлением движения, кроме момента прицеливания).
+    private float moveFacingAngle;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        moveFacingAngle = rb.rotation;
         if (aimingVignette != null) aimingVignetteFader = aimingVignette.GetComponent<FadeImage>();
         if (catchButton != null) catchButton.onClick.AddListener(TryCatchKnife);
     }
@@ -56,9 +63,30 @@ public class TestScript : MonoBehaviour
         if (ParrySystem.Active || PlayerHealth.IsDead) return;
 
         UpdateKnifeCooldown();
+        aimFacingActive = false;
         HandleAim();
         UpdateCatchButton();
 
+        UpdateMovementAndFacing();
+
+        // Пока игрок целится (держит джойстик броска и нож в руке), он смотрит в сторону прицела, а не по
+        // ходу движения или за мышью: это важно для парирования (оно зависит от того, куда смотрит игрок).
+        // Применяется ПОСЛЕ движения, поэтому перекрывает поворот по ходу; после броска остаётся как есть.
+        if (aimFacingActive)
+        {
+            rb.rotation = aimFacingAngle;
+        }
+        else if (wasAimFacing)
+        {
+            // Прицеливание закончилось (бросок или отпустили): разворачиваем обратно по направлению движения.
+            // Если левый джойстик зажат, поворот и так уже по ходу; если нет - возвращаем последнее направление.
+            rb.rotation = moveFacingAngle;
+        }
+        wasAimFacing = aimFacingActive;
+    }
+
+    void UpdateMovementAndFacing()
+    {
         Vector2 joystickDir = moveJoystick != null ? moveJoystick.Direction : Vector2.zero;
         bool useJoystick = joystickDir.sqrMagnitude > 0.01f;
 
@@ -68,6 +96,7 @@ public class TestScript : MonoBehaviour
             // Перед спрайта теперь смотрит в мировой +Y при повороте 0.
             float angle = Mathf.Atan2(joystickDir.y, joystickDir.x) * Mathf.Rad2Deg - 90f;
             rb.rotation = angle;
+            moveFacingAngle = angle;
             return;
         }
 
@@ -165,6 +194,8 @@ public class TestScript : MonoBehaviour
             {
                 targetTimeScale = 1f;
             }
+            // Множитель скорости игры (кнопки 0.5/0.75/1) действует поверх замедления прицеливания.
+            targetTimeScale *= GameSpeed.Multiplier;
             Time.timeScale = targetTimeScale;
             Time.fixedDeltaTime = NormalFixedDeltaTime * targetTimeScale;
 
@@ -183,12 +214,17 @@ public class TestScript : MonoBehaviour
             Vector2 holdOffset = dir.normalized * holdDistance;
             heldKnifeScript.SetHoldPosition(rb.position, holdOffset);
             lastAimDir = dir;
+            if (dir.sqrMagnitude > 0.0001f)
+            {
+                aimFacingActive = true;
+                aimFacingAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
+            }
             heldKnifeScript.SetAimDirection(dir);
         }
         else if (aimWasActive)
         {
-            Time.timeScale = 1f;
-            Time.fixedDeltaTime = NormalFixedDeltaTime;
+            Time.timeScale = GameSpeed.Multiplier;
+            Time.fixedDeltaTime = NormalFixedDeltaTime * GameSpeed.Multiplier;
             // Нужно только если затухание по расписанию выше так и не успело стартовать (отпустили
             // рано, ещё внутри aimSlowDuration) - как только оно идёт или завершено, виньетка уже
             // гаснет/исчезла, и FadeOut попытался бы запустить StartCoroutine на GameObject,

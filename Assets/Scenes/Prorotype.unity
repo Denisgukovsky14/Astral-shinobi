@@ -2937,6 +2937,7 @@ GameObject:
   - component: {fileID: 1243403766}
   - component: {fileID: 1243403767}
   - component: {fileID: 1243403768}
+  - component: {fileID: 1243403769}
   m_Layer: 0
   m_Name: Canvas
   m_TagString: Untagged
@@ -3049,7 +3050,9 @@ MonoBehaviour:
   coneAngle: 100
   passDuration: 0.5
   passes: 3
-  targetT: 0.75
+  targetMin: 0.2
+  targetMax: 0.85
+  speedPerExtraAttacker: 1.5
   targetHalfWidth: 0.06
   cooldown: 5
   resultHoldTime: 0.35
@@ -3096,6 +3099,25 @@ MonoBehaviour:
   size: {x: 600, y: 40}
   backColor: {r: 0, g: 0, b: 0, a: 0.6}
   fillColor: {r: 0.85, g: 0.15, b: 0.15, a: 1}
+--- !u!114 &1243403769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1243403761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 695056f17cbefd24180fc46a8c12c401, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameSpeedButtons
+  speeds:
+  - 0.5
+  - 0.75
+  - 1
+  buttonSize: {x: 120, y: 90}
+  spacing: 14
+  rightMargin: 30
 --- !u!1 &1290755042
 GameObject:
   m_ObjectHideFlags: 0
@@ -3566,17 +3588,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f7e3db8aa267e184d8b8b6892e070f83, type: 3}
---- !u!114 &1592455785 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4074839407349717191, guid: f7e3db8aa267e184d8b8b6892e070f83, type: 3}
-  m_PrefabInstance: {fileID: 1592455784}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3e5331e78779e2a4eb5b8b40be26cedf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyAttackZone
 --- !u!4 &1630646019 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6386430164195767221, guid: ad41e28a06850984ea3fa8026baf65e0, type: 3}
@@ -3952,6 +3963,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInjector
   touchZone: {fileID: 0}
   aimPoints: []
+  overrideEnemyBounds: 0
+  levelBoundsMin: {x: -9, y: -4.85}
+  levelBoundsMax: {x: 9, y: 4.85}
 --- !u!114 &1853153472
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3965,6 +3979,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 1
+  godMode: 0
   invulnerabilityTime: 0
 --- !u!114 &1853153473
 MonoBehaviour:
@@ -4169,7 +4184,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe03914282d010744a23c65f41f55c1d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PotentialHitCounterUI
-  attackZone: {fileID: 1592455785}
   flashDuration: 0.4
 --- !u!114 &1945949391
 MonoBehaviour:

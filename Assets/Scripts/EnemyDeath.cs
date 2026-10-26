@@ -1,8 +1,14 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Pathfinding;
 
 public class EnemyDeath : MonoBehaviour
 {
+    // Живые враги на сцене (включая дремлющих) и событие смерти: по ним LevelManager понимает, что
+    // убит последний враг, и роняет ключ от выходной двери.
+    public static readonly List<EnemyDeath> Alive = new List<EnemyDeath>();
+    public static event System.Action<Vector3> Died;
+
     public HealthBar healthBar;
     public SpriteRenderer bodySprite;
     public Sprite deadSprite;
@@ -10,10 +16,21 @@ public class EnemyDeath : MonoBehaviour
 
     private bool isDead;
 
+    void OnEnable()
+    {
+        if (!isDead && !Alive.Contains(this)) Alive.Add(this);
+    }
+
+    void OnDisable()
+    {
+        Alive.Remove(this);
+    }
+
     void Update()
     {
         if (isDead || healthBar.currentHealth > 0f) return;
         isDead = true;
+        Alive.Remove(this);
 
         GetComponent<AIPath>().canMove = false;
         // Мёртвый враг ничего не делает: выключаем все остальные скрипты на нём (бой, бросок,
@@ -44,5 +61,7 @@ public class EnemyDeath : MonoBehaviour
         }
 
         healthBar.gameObject.SetActive(false);
+
+        Died?.Invoke(transform.position);
     }
 }

@@ -1,10 +1,8 @@
 using UnityEngine;
 using TMPro;
 
-// Счётчик «+N» в левом верхнем углу для кунаев, реально попавших в игрока - настоящий контакт
-// снаряда, в отличие от счётчика только-для-измерения «Could've hit you» из EnemyAttackZone
-// (ближний бой). Тот же паттерн «опрос и вспышка», что и в PotentialHitCounterUI, для
-// визуальной согласованности.
+// Надпись «Кунайщик попал в вас: N раз» в левом верхнем углу: считает кунаи, реально попавшие в игрока
+// (Kunai.TotalHits). Тот же принцип «опрос и вспышка», что и в PotentialHitCounterUI.
 public class KunaiHitFeedbackUI : MonoBehaviour
 {
     public float flashDuration = 0.4f;
@@ -17,24 +15,30 @@ public class KunaiHitFeedbackUI : MonoBehaviour
     void Awake()
     {
         text = GetComponent<TextMeshProUGUI>();
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         normalColor = text.color;
-        text.text = "Kunai hits: " + Kunai.TotalHits;
-        lastShown = Kunai.TotalHits;
+        // Статический счётчик переживает перезапуск сцены - на старте уровня обнуляем.
+        Kunai.TotalHits = 0;
     }
 
     void Update()
     {
-        if (Kunai.TotalHits != lastShown)
+        int hits = Kunai.TotalHits;
+        if (hits != lastShown)
         {
-            lastShown = Kunai.TotalHits;
-            text.text = "Kunai hits: " + lastShown;
-            text.color = Color.red;
-            flashTimer = flashDuration;
+            bool first = lastShown < 0;
+            lastShown = hits;
+            text.text = "Кунайщик попал в вас: " + hits + " " + RuText.Times(hits);
+            if (!first)
+            {
+                text.color = Color.red;
+                flashTimer = flashDuration;
+            }
         }
 
         if (flashTimer > 0f)
         {
-            flashTimer -= Time.deltaTime;
+            flashTimer -= Time.unscaledDeltaTime;
             if (flashTimer <= 0f) text.color = normalColor;
         }
     }

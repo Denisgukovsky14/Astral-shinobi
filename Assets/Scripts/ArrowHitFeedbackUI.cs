@@ -1,8 +1,8 @@
 using UnityEngine;
 using TMPro;
 
-// Тот же паттерн «опрос и вспышка», что и в KunaiHitFeedbackUI, только следит за
-// Arrow.TotalHits - отдельный счётчик, так как стрелы - действительно другой тип снаряда.
+// Надпись «Лучник попал в вас: N раз» в левом верхнем углу: считает стрелы, реально попавшие в игрока
+// (Arrow.TotalHits). Тот же принцип «опрос и вспышка», что и в KunaiHitFeedbackUI.
 public class ArrowHitFeedbackUI : MonoBehaviour
 {
     public float flashDuration = 0.4f;
@@ -15,24 +15,30 @@ public class ArrowHitFeedbackUI : MonoBehaviour
     void Awake()
     {
         text = GetComponent<TextMeshProUGUI>();
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         normalColor = text.color;
-        text.text = "Arrow hits: " + Arrow.TotalHits;
-        lastShown = Arrow.TotalHits;
+        // Статический счётчик переживает перезапуск сцены - на старте уровня обнуляем.
+        Arrow.TotalHits = 0;
     }
 
     void Update()
     {
-        if (Arrow.TotalHits != lastShown)
+        int hits = Arrow.TotalHits;
+        if (hits != lastShown)
         {
-            lastShown = Arrow.TotalHits;
-            text.text = "Arrow hits: " + lastShown;
-            text.color = Color.red;
-            flashTimer = flashDuration;
+            bool first = lastShown < 0;
+            lastShown = hits;
+            text.text = "Лучник попал в вас: " + hits + " " + RuText.Times(hits);
+            if (!first)
+            {
+                text.color = Color.red;
+                flashTimer = flashDuration;
+            }
         }
 
         if (flashTimer > 0f)
         {
-            flashTimer -= Time.deltaTime;
+            flashTimer -= Time.unscaledDeltaTime;
             if (flashTimer <= 0f) text.color = normalColor;
         }
     }

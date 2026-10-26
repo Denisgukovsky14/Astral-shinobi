@@ -1,9 +1,10 @@
 using UnityEngine;
 using TMPro;
 
+// Надпись «Мечник ударил вас: N раз» в левом верхнем углу: считает реальные удары всех мечников
+// (EnemyAttackZone.TotalHits; парированные удары не в счёте). При каждом новом ударе вспыхивает красным.
 public class PotentialHitCounterUI : MonoBehaviour
 {
-    public EnemyAttackZone attackZone;
     public float flashDuration = 0.4f;
 
     private TextMeshProUGUI text;
@@ -14,26 +15,30 @@ public class PotentialHitCounterUI : MonoBehaviour
     void Awake()
     {
         text = GetComponent<TextMeshProUGUI>();
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         normalColor = text.color;
+        // Статический счётчик переживает перезапуск сцены - на старте уровня обнуляем.
+        EnemyAttackZone.TotalHits = 0;
     }
 
     void Update()
     {
-        // Привязан к тому ближнему врагу, который сейчас есть в сцене - остаётся не назначенным
-        // (и этот счётчик просто молчит), когда в сцене только не-ближние враги.
-        if (attackZone == null) return;
-
-        if (attackZone.PotentialHitCount != lastShown)
+        int hits = EnemyAttackZone.TotalHits;
+        if (hits != lastShown)
         {
-            lastShown = attackZone.PotentialHitCount;
-            text.text = "Could've hit you: " + lastShown;
-            text.color = Color.red;
-            flashTimer = flashDuration;
+            bool first = lastShown < 0;
+            lastShown = hits;
+            text.text = "Мечник ударил вас: " + hits + " " + RuText.Times(hits);
+            if (!first)
+            {
+                text.color = Color.red;
+                flashTimer = flashDuration;
+            }
         }
 
         if (flashTimer > 0f)
         {
-            flashTimer -= Time.deltaTime;
+            flashTimer -= Time.unscaledDeltaTime;
             if (flashTimer <= 0f) text.color = normalColor;
         }
     }

@@ -52,6 +52,9 @@ public class EnemyAttackZone : MonoBehaviour
     public float returnVisualTime = 0.12f;
 
     public int PotentialHitCount { get; private set; }
+
+    // Все реальные удары мечников по игроку (не парированные), для надписи на экране (PotentialHitCounterUI).
+    public static int TotalHits;
     public int ParriedCount { get; private set; }
 
     private float cooldownTimer;
@@ -63,6 +66,10 @@ public class EnemyAttackZone : MonoBehaviour
     // Удар должен пройти, но игрок смотрит на врага: идёт мини-игра парирования (время стоит).
     private bool awaitingParry;
     public bool IsWindingUp => windingUp;
+
+    // Все живые мечники: при начале парирования те из них, чей удар уже летит (идёт замах), попадают
+    // в ту же итерацию и отбиваются тем же парированием (см. JoinAllInFlight).
+    private static readonly System.Collections.Generic.List<EnemyAttackZone> All = new System.Collections.Generic.List<EnemyAttackZone>();
     private readonly RaycastHit2D[] lineHits = new RaycastHit2D[8];
     private ContactFilter2D obstacleFilter;
 
@@ -101,8 +108,14 @@ public class EnemyAttackZone : MonoBehaviour
         }
     }
 
+    void OnEnable()
+    {
+        if (!All.Contains(this)) All.Add(this);
+    }
+
     void OnDisable()
     {
+        All.Remove(this);
         windingUp = false;
         ResetSword();
     }
@@ -177,7 +190,12 @@ public class EnemyAttackZone : MonoBehaviour
         ParrySystem parry = ParrySystem.Instance;
         Collider2D body = GetComponent<Collider2D>();
         Vector2 point = body != null ? body.ClosestPoint(player.position) : (Vector2)transform.position;
-        if (parry != null && parry.TryBegin(point, OnParryResolved)) awaitingParry = true;
+        if (parry != null && parry.TryBegin(point, OnParryResolved))
+        {
+            awaitingParry = true;
+            JoinAllInFlight();
+        }
+        else if (parry != null && parry.TryJoin(point, OnParryResolved)) awaitingParry = true; // другой мечник уже начал парирование
         else
         {
             RegisterHit();
@@ -185,10 +203,27 @@ public class EnemyAttackZone : MonoBehaviour
         }
     }
 
+    // Начато парирование: остальные мечники, у кого замах уже идёт и игрок в зоне, бьют в ту же итерацию -
+    // их удары разрешаются вместе с этим (а шарик ускоряется за каждого). Время уже стоит, поэтому
+    // дожидаться окончания их замаха нельзя - иначе их удары прошли бы уже после парирования.
+    void JoinAllInFlight()
+    {
+        foreach (var other in new System.Collections.Generic.List<EnemyAttackZone>(All))
+        {
+            if (other == this || !other.windingUp || other.awaitingParry) continue;
+            if (!other.PlayerInReach(other.range + other.hitRangeBonus)) continue;
+
+            other.windingUp = false;
+            if (other.ai != null) { other.ai.isStopped = false; other.ai.canMove = true; }
+            other.Strike(true);
+        }
+    }
+
     // Удар прошёл: счётчик и настоящий урон по игроку.
     void RegisterHit()
     {
         PotentialHitCount++;
+        TotalHits++;
         var health = player.GetComponent<PlayerHealth>();
         if (health != null) health.TakeDamage(damage);
     }

@@ -11,19 +11,30 @@ public class StartFreeze : MonoBehaviour
     [Tooltip("Порог отклонения джойстика, с которого движение считается действием.")]
     public float joystickThreshold = 0.1f;
 
+    // true, пока игра заморожена в ожидании первого действия игрока.
+    public static bool Waiting { get; private set; }
+
     private TestScript control;
 
     void Awake()
     {
         control = GetComponent<TestScript>();
         Time.timeScale = 0f;
+        Waiting = true;
+    }
+
+    void OnDisable()
+    {
+        Waiting = false;
     }
 
     void Update()
     {
         if (!PlayerActed()) return;
 
-        Time.timeScale = 1f;
+        Waiting = false;
+        Time.timeScale = GameSpeed.Multiplier;
+        Time.fixedDeltaTime = 0.02f * GameSpeed.Multiplier;
         enabled = false;
     }
 
