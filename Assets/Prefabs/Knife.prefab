@@ -169,12 +169,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d9bfea8e8dc8e4f87cf8cdb2fa2da9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Knife
-  speed: 12
+  speed: 18
   baseDamage: 20
   previewMaxDistance: 20
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 16640
   enemyMask:
     serializedVersion: 2
     m_Bits: 2048
@@ -183,8 +183,10 @@ MonoBehaviour:
   minTrajectoryDistance: 0.8
   normalTrajectoryColor: {r: 1, g: 1, b: 0, a: 0.5}
   blockedTrajectoryColor: {r: 1, g: 0, b: 0, a: 0.5}
+  cornerRiskLengthFraction: 0.6
   missCooldown: 1.2
   hitEnemyCooldown: 0.5
+  maxContinuousObstacleOverlap: 0.1
 --- !u!120 &2922130636816468912
 LineRenderer:
   serializedVersion: 2

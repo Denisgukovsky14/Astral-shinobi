@@ -181,7 +181,9 @@ public class ArcherFighter : MonoBehaviour
             return;
         }
 
+#if UNITY_EDITOR
         Debug.Log($"[ArcherFighter] Shot from {selfPos} direction {direction}");
+#endif
 
         FireArrow(selfPos, direction);
         cooldownTimer = throwCooldown;

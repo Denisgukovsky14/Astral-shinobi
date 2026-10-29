@@ -410,8 +410,9 @@ public class EnemyChaseStop : MonoBehaviour
     void Update()
     {
 
-         // ===== ВСТАВЬ ЛОГИ СЮДА =====
-    if (Time.frameCount % 60 == 0) // раз в секунду (при 60 FPS)
+#if UNITY_EDITOR
+    // Отладочный лог AIPath раз в секунду - только в редакторе, в билде он тормозит.
+    if (Time.frameCount % 60 == 0)
     {
         Debug.Log($"[AIPath DEBUG] " +
                   $"pos={transform.position} | " +
@@ -425,7 +426,7 @@ public class EnemyChaseStop : MonoBehaviour
                   $"velocity={ai.velocity.magnitude:F2} | " +
                   $"remainingDistance={ai.remainingDistance:F2}");
     }
-    // ===== КОНЕЦ ЛОГОВ =====
+#endif
 
         UpdateTouchStop();
 

@@ -83,7 +83,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 2
-  m_Sprite: {fileID: 21300000, guid: 6f8696cd37558a64fb4079ee278ea0c7, type: 3}
+  m_Sprite: {fileID: 7433687983771415246, guid: 0f9304bed44be23449cbfe4fbb323859, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -132,13 +132,13 @@ BoxCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1.6, y: 0.32}
+    oldSize: {x: 1.03, y: 0.19}
     newSize: {x: 1.6, y: 0.32}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.6, y: 0.19}
+  m_Size: {x: 1.03, y: 0.19}
   m_EdgeRadius: 0
 --- !u!114 &4890376387007303690
 MonoBehaviour:
@@ -156,8 +156,8 @@ MonoBehaviour:
   openZone: {fileID: 3298257066131611771}
   exitZone: {fileID: 135384024610282415}
   sprite: {fileID: 4064593869472173108}
-  closedSprite: {fileID: 21300000, guid: 6f8696cd37558a64fb4079ee278ea0c7, type: 3}
-  openSprite: {fileID: 21300000, guid: ac4e9a777c540734ebfe674e882c5b6c, type: 3}
+  closedSprite: {fileID: 7433687983771415246, guid: 0f9304bed44be23449cbfe4fbb323859, type: 3}
+  openSprite: {fileID: 0}
 --- !u!1 &4415366131476702080
 GameObject:
   m_ObjectHideFlags: 0
@@ -225,7 +225,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0.8}
+  m_Offset: {x: 0, y: 0.45}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -235,7 +235,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.6, y: 1}
+  m_Size: {x: 1.1, y: 0.6}
   m_EdgeRadius: 0
 --- !u!114 &135384024610282415
 MonoBehaviour:
@@ -316,7 +316,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: -0.9}
+  m_Offset: {x: 0, y: -0.55}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -326,7 +326,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 2, y: 1.4}
+  m_Size: {x: 1.2, y: 0.8}
   m_EdgeRadius: 0
 --- !u!114 &3298257066131611771
 MonoBehaviour:

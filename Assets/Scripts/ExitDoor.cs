@@ -14,6 +14,8 @@ public class ExitDoor : MonoBehaviour
     public ZoneRelay openZone;
     [Tooltip("Зона за дверью: игрок, зашедший сюда при открытой двери, переходит на следующий уровень.")]
     public ZoneRelay exitZone;
+    [Tooltip("Дверь не открывается: игрок с ключом, подошедший к ней (зона «Open»), сразу проходит уровень. Выключено - дверь открывается и надо шагнуть за неё.")]
+    public bool completeOnApproach = true;
     public SpriteRenderer sprite;
     public Sprite closedSprite;
     public Sprite openSprite;
@@ -30,7 +32,9 @@ public class ExitDoor : MonoBehaviour
     {
         if (IsOpen || !IsPlayer(other)) return;
         var level = LevelManager.Instance;
-        if (level != null && (level.HasKey || level.NoKeyNeeded)) Open();
+        if (level == null || !(level.HasKey || level.NoKeyNeeded)) return;
+        if (completeOnApproach) level.Complete(); // дверь остаётся на месте, уровень засчитывается сразу
+        else Open();
     }
 
     void OnExitZone(Collider2D other)
@@ -45,6 +49,7 @@ public class ExitDoor : MonoBehaviour
         IsOpen = true;
         if (solid != null) solid.enabled = false;
         if (sprite != null && openSprite != null) sprite.sprite = openSprite;
+        else if (sprite != null) sprite.enabled = false; // спрайта открытой двери пока нет - дверь просто исчезает
         if (LevelManager.Instance != null) LevelManager.Instance.NotifyDoorOpened();
     }
 

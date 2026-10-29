@@ -16,7 +16,7 @@ public static class GameSpeed
     public static void Set(float multiplier)
     {
         Multiplier = multiplier;
-        if (StartFreeze.Waiting || ParrySystem.Active || PlayerHealth.IsDead) return;
+        if (StartFreeze.Waiting || ParrySystem.Active || PlayerHealth.IsDead || LevelManager.Finished) return;
         Time.timeScale = multiplier;
         Time.fixedDeltaTime = 0.02f * multiplier;
     }

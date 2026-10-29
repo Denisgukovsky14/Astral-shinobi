@@ -570,6 +570,7 @@ public class CombatDirector : MonoBehaviour
 
     // --- Отладка ---
 
+#if UNITY_EDITOR // в билде оверлей не нужен: OnGUI на телефоне заметно тормозит
     void OnGUI()
     {
         if (!showOverlay) return;
@@ -585,6 +586,7 @@ public class CombatDirector : MonoBehaviour
         }
         GUI.Label(new Rect(10, 10, 700, 200), text, style);
     }
+#endif
 
     void OnDrawGizmos()
     {

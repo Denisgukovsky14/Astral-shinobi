@@ -60,7 +60,7 @@ public class TestScript : MonoBehaviour
     void Update()
     {
         // Пока идёт мини-игра парирования, время стоит и игрок ничего не делает.
-        if (ParrySystem.Active || PlayerHealth.IsDead) return;
+        if (ParrySystem.Active || PlayerHealth.IsDead || LevelManager.Finished) return;
 
         UpdateKnifeCooldown();
         aimFacingActive = false;

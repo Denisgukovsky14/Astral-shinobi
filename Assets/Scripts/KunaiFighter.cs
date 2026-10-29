@@ -231,7 +231,9 @@ public class KunaiFighter : MonoBehaviour
         // гадать координаты постфактум на большом уровне тратит куда больше времени, чем стоит этот лог.
         // Если когда-нибудь увидят кунай, летящий в стену, в Консоли будут точные начало/направление
         // броска, который это вызвал, без необходимости воспроизводить.
+#if UNITY_EDITOR
         Debug.Log($"[KunaiFighter] Throw from {selfPos} direction {direction}");
+#endif
 
         FireKunai(selfPos, direction);
         cooldownTimer = throwCooldown;
@@ -781,8 +783,10 @@ public class KunaiFighter : MonoBehaviour
         {
             Vector2 closest = Physics2D.ClosestPoint(clearanceOrigin, cornerOverlapBuffer[i]);
             float cornerGap = Vector2.Distance(clearanceOrigin, closest);
+#if UNITY_EDITOR
             if (logThisCheck)
                 Debug.Log($"[KunaiFighter] Corner near reflection point (gap={cornerGap:F3}, leniency={kunaiLength * cornerLeniencyFraction:F3}) - allowed anyway");
+#endif
         }
 
         // Та же причина, что и у проверки угла выше - смещение clearanceOrigin уже гарантирует, что он
@@ -791,8 +795,10 @@ public class KunaiFighter : MonoBehaviour
         // кусок стены, блокирующий выстрел. См. IsRicochetLegClear, почему исключение «коллайдера, от
         // которого отскочили» по ссылке на этом уровне не работает (весь лабиринт - один CompositeCollider2D).
         bool legClear = IsRicochetLegClear(clearanceOrigin, target);
+#if UNITY_EDITOR
         if (logThisCheck)
             Debug.Log($"[KunaiFighter] Wall between reflection point and hero? {!legClear} (bounce={clearanceOrigin} hero={target})");
+#endif
         if (!legClear) return false;
 
         float distSecondLeg = Vector2.Distance(clearanceOrigin, target);

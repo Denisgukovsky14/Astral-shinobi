@@ -23,6 +23,24 @@ public class LevelManager : MonoBehaviour
     [Tooltip("Сколько секунд пройти от входа в зону выхода до загрузки следующего уровня.")]
     public float exitDelay = 0.6f;
 
+    [Tooltip("Временный конец уровня для тестов: гибель последнего врага сразу останавливает время и показывает экран «Победа» (заново / в меню). Ключ и дверь при этом не используются.")]
+    public bool winOnLastKill = true;
+
+    [Tooltip("Сцена стартового меню (должна быть в Build Settings).")]
+    public string menuSceneName = "MainMenu";
+
+    [Tooltip("Первый уровень игры: его загружает «Сначала» на экране «Игра пройдена». Пусто - сцена с индексом 1 в Build Settings (0 - меню).")]
+    public string firstLevelScene = "";
+
+    [Tooltip("Номер этого уровня для надписи «Уровень N из M» вверху экрана. 0 - надпись скрыта.")]
+    public int levelNumber = 0;
+
+    [Tooltip("Сколько всего уровней в игре (для надписи «Уровень N из M»).")]
+    public int levelsTotal = 5;
+
+    // Уровень выигран (экран «Победа»): время стоит, игрок и скорость игры не должны его размораживать.
+    public static bool Finished { get; private set; }
+
     public bool HasKey { get; private set; }
     public bool KeyDropped { get; private set; }
     // Врагов на уровне не было вообще: дверь открыта без ключа.
@@ -31,12 +49,14 @@ public class LevelManager : MonoBehaviour
     private Text hint;
     private Text keyLabel;
     private GameObject endScreen;
+    private GameObject winScreen;
     private float hintTimer;
     private bool completing;
 
     void Awake()
     {
         Instance = this;
+        Finished = false;
         BuildUI();
     }
 
@@ -78,12 +98,25 @@ public class LevelManager : MonoBehaviour
 
     void OnEnemyDied(Vector3 position)
     {
+        if (winOnLastKill)
+        {
+            if (EnemyDeath.Alive.Count == 0 && !PlayerHealth.IsDead && !Finished) Win();
+            return;
+        }
         if (KeyDropped || EnemyDeath.Alive.Count > 0) return;
 
         KeyDropped = true;
         GameObject key = keyPrefab != null ? Instantiate(keyPrefab, position, Quaternion.identity) : null;
         if (key == null) Debug.LogWarning("[LevelManager] keyPrefab не назначен - ключ не создан");
         Say("Последний враг пал - заберите ключ");
+    }
+
+    void Win()
+    {
+        Finished = true;
+        Time.timeScale = 0f;
+        if (hint != null) hint.text = "";
+        if (winScreen != null) winScreen.SetActive(true);
     }
 
     public void PickUpKey()
@@ -119,6 +152,14 @@ public class LevelManager : MonoBehaviour
             yield break;
         }
         SceneManager.LoadScene(target);
+    }
+
+    // Сцена, с которой игра начинается заново: firstLevelScene, иначе индекс 1 (0 - меню), иначе текущая.
+    string FirstLevelScene()
+    {
+        if (!string.IsNullOrEmpty(firstLevelScene)) return firstLevelScene;
+        if (SceneManager.sceneCountInBuildSettings > 1) return SceneUtility.GetScenePathByBuildIndex(1);
+        return SceneManager.GetActiveScene().path;
     }
 
     // Имя/путь следующей сцены или null, если следующей нет.
@@ -157,6 +198,14 @@ public class LevelManager : MonoBehaviour
         hint = NewText("LevelHint", canvas.transform, font, 54, new Vector2(0f, -170f), new Vector2(1400f, 80f), new Vector2(0.5f, 1f));
         hint.color = Color.white;
         keyLabel = NewText("KeyLabel", canvas.transform, font, 40, new Vector2(0f, -115f), new Vector2(600f, 60f), new Vector2(0.5f, 1f));
+        if (levelNumber > 0)
+        {
+            // Правый верхний угол: по центру сверху стоит полоска здоровья, надпись перекрывала её.
+            var levelLabel = NewText("LevelLabel", canvas.transform, font, 40, new Vector2(-30f, -25f), new Vector2(600f, 60f), new Vector2(1f, 1f));
+            levelLabel.alignment = TextAnchor.MiddleRight;
+            levelLabel.text = "Уровень " + levelNumber + " из " + levelsTotal;
+            levelLabel.color = new Color(1f, 1f, 1f, 0.7f);
+        }
 
         endScreen = new GameObject("LevelEndScreen", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         endScreen.transform.SetParent(canvas.transform, false);
@@ -175,12 +224,32 @@ public class LevelManager : MonoBehaviour
         btn.GetComponent<Button>().onClick.AddListener(() =>
         {
             Time.timeScale = 1f;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().path);
+            SceneManager.LoadScene(FirstLevelScene());
         });
         var label = NewText("Label", btn.transform, font, 70, Vector2.zero, brt.sizeDelta, new Vector2(0.5f, 0.5f));
         label.text = "Сначала";
         label.color = Color.black;
         endScreen.SetActive(false);
+
+        // Экран победы: заголовок, треугольник (сыграть уровень заново) и крестик (в начальное меню).
+        winScreen = new GameObject("WinScreen", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        winScreen.transform.SetParent(canvas.transform, false);
+        var wrt = (RectTransform)winScreen.transform;
+        wrt.anchorMin = Vector2.zero; wrt.anchorMax = Vector2.one; wrt.offsetMin = wrt.offsetMax = Vector2.zero;
+        winScreen.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
+        var winTitle = NewText("Title", winScreen.transform, font, 140, new Vector2(0f, 180f), new Vector2(1400f, 220f), new Vector2(0.5f, 0.5f));
+        winTitle.text = "Победа";
+        UIShapes.IconButton("Replay", winScreen.transform, UIShapes.Triangle(), new Vector2(-200f, -90f), 240f, () =>
+        {
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().path);
+        });
+        UIShapes.IconButton("ToMenu", winScreen.transform, UIShapes.Cross(), new Vector2(200f, -90f), 240f, () =>
+        {
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(menuSceneName);
+        });
+        winScreen.SetActive(false);
     }
 
     void ShowEndScreen()

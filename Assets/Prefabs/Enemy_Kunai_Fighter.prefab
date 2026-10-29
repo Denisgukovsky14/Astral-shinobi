@@ -385,7 +385,7 @@ MonoBehaviour:
   - {fileID: 0}
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 16640
   standRadius: 4.5
   minPlayerDistance: 1
   pathPlayerClearance: 2
@@ -434,6 +434,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatAgent
   ring: 1
+  startDormant: 0
+  activationRadius: 3
 --- !u!114 &4836429920190610928
 MonoBehaviour:
   m_ObjectHideFlags: 0

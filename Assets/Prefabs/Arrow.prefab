@@ -241,5 +241,8 @@ MonoBehaviour:
   maxLifetime: 4
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 16640
   maxContinuousObstacleOverlap: 0.1
+  maxRicochets: 1
+  ricochetMinAngle: 45
+  damage: 0.6

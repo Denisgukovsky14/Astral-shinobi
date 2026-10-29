@@ -30,6 +30,9 @@ public class ParrySystem : MonoBehaviour
     [Header("Правила")]
     [Tooltip("Ширина конуса перед игроком, внутри которого враг считается «на которого игрок смотрит».")]
     public float coneAngle = 120f;
+
+    [Tooltip("Тап для парирования засчитывается от любого пальца (в том числе второго, пока первый держит джойстик). Выключено - как раньше: только первый палец / мышь.")]
+    public bool tapAnyFinger = true;
     [Tooltip("Сколько секунд занимает один проход шарика по дуге.")]
     public float passDuration = 0.5f;
     [Tooltip("Сколько проходов делает шарик (туда, обратно, опять туда = 3).")]
@@ -168,10 +171,21 @@ public class ParrySystem : MonoBehaviour
         UpdateBall(t);
 
         // Тап в том же кадре, где началась мини-игра, не считается - это не реакция игрока.
-        bool tapped = Time.frameCount != beginFrame && (tapQueued || (Pointer.current != null && Pointer.current.press.wasPressedThisFrame));
+        bool tapped = Time.frameCount != beginFrame && (tapQueued || (tapAnyFinger && AnyTouchBegan()) || (Pointer.current != null && Pointer.current.press.wasPressedThisFrame));
         tapQueued = false;
         if (tapped) Resolve(Mathf.Abs(t - currentTargetT) <= targetHalfWidth);
         else if (elapsed >= total) Resolve(false);
+    }
+
+    // Pointer.press на телефоне - это только первый палец (пока он лежит на джойстике, тап вторым
+    // пальцем им не виден), поэтому смотрим начало любого касания.
+    static bool AnyTouchBegan()
+    {
+        var screen = Touchscreen.current;
+        if (screen == null) return false;
+        foreach (var touch in screen.touches)
+            if (touch.press.wasPressedThisFrame) return true;
+        return false;
     }
 
     // Программный тап (для кнопки на экране или тестов) - то же, что касание экрана.
